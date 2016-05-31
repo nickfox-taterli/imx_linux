@@ -1180,30 +1180,108 @@ static unsigned long lcdif_get_rate(struct clk *clk)
 	return rate;
 }
 
+//modify by hak for using ref_pix for lcdif
 static int lcdif_set_rate(struct clk *clk, unsigned long rate)
 {
-	long parent_rate = clk->parent->get_rate(clk->parent);
-	int reg_val;
-	
-	rate = parent_rate/rate;
+        int ret = 0;
 
-	reg_val = __raw_readl(clk->scale_reg);
-	reg_val &= ~(BM_CLKCTRL_DIS_LCDIF_DIV | BM_CLKCTRL_DIS_LCDIF_CLKGATE);
-	reg_val |= (rate << BP_CLKCTRL_DIS_LCDIF_DIV) & BM_CLKCTRL_DIS_LCDIF_DIV;
-	__raw_writel(reg_val, clk->scale_reg);
-	if (clk->busy_reg) {
-		int i;
-		for (i = 10000; i; i--)
-			if (!clk_is_busy(clk))
-				break;
-		if (!i)
-			return -ETIMEDOUT;
-	}
+        /*
+         * ref_pix can be between 480e6*18/35=246.9MHz and 480e6*18/18=480MHz,
+         * which is between 18/(18*480e6)=2.084ns and 35/(18*480e6)=4.050ns.
+         *
+         * ns_cycle >= 2*18e3/(18*480) = 25/6
+         * ns_cycle <= 2*35e3/(18*480) = 875/108
+         *
+         * Multiply the ns_cycle by 'div' to lengthen it until it fits the
+         * bounds. This is the divider we'll use after ref_pix.
+         *
+         * 6 * ns_cycle >= 25 * div
+         * 108 * ns_cycle <= 875 * div
+         */
+        u32 ns_cycle = 1000000000 / rate;
+        u32 div, reg_val;
+        u32 lowest_result = (u32) -1;
+        u32 lowest_div = 0, lowest_fracdiv = 0;
 
-	reg_val = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ);
-	reg_val |= BM_CLKCTRL_CLKSEQ_BYPASS_DIS_LCDIF;
-	__raw_writel(reg_val, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ);
-	return 0;
+        ns_cycle *= 2;
+
+        for (div = 1; div < 256; ++div) {
+                u32 fracdiv;
+                u32 ps_result;
+                int lower_bound = 6 * ns_cycle >= 25 * div;
+                int upper_bound = 108 * ns_cycle <= 875 * div;
+                if (!lower_bound)
+                        break;
+                if (!upper_bound)
+                        continue;
+                /*
+                 * Found a matching div. Calculate fractional divider needed,
+                 * rounded up.
+                 */
+                fracdiv = ((clk_get_rate(&pll_clk[0]) / 1000000 * 18 / 2) *
+                           ns_cycle + 1000 * div - 1) /
+                          (1000 * div);
+                if (fracdiv < 18 || fracdiv > 35) {
+                        ret = -EINVAL;
+                        goto out;
+                }
+                /* Calculate the actual cycle time this results in */
+                ps_result = 6250 * div * fracdiv / 27;
+
+                /* Use the fastest result that doesn't break ns_cycle */
+                if (ps_result <= lowest_result) {
+                        lowest_result = ps_result;
+                        lowest_div = div;
+                        lowest_fracdiv = fracdiv;
+                }
+        }
+
+        if (div >= 256 || lowest_result == (u32) -1) {
+                ret = -EINVAL;
+                goto out;
+        }
+        /* set to XTAL source first */
+        reg_val = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ);
+        reg_val |= BM_CLKCTRL_CLKSEQ_BYPASS_DIS_LCDIF;
+        __raw_writel(reg_val, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ);
+
+
+        /* Program ref_pix phase fractional divider */
+        reg_val = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC1);
+        reg_val &= ~BM_CLKCTRL_FRAC1_PIXFRAC;
+        reg_val |= BF_CLKCTRL_FRAC1_PIXFRAC(lowest_fracdiv);
+        __raw_writel(reg_val, CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC1);
+
+        /* Ungate PIX CLK*/
+        __raw_writel(BM_CLKCTRL_FRAC1_CLKGATEPIX,
+                     CLKCTRL_BASE_ADDR + HW_CLKCTRL_FRAC1_CLR);
+
+        /* Program LCDIF divider */
+        reg_val = __raw_readl(clk->scale_reg);
+        reg_val &= ~(BM_CLKCTRL_DIS_LCDIF_DIV | BM_CLKCTRL_DIS_LCDIF_CLKGATE);
+        reg_val |= BF_CLKCTRL_DIS_LCDIF_DIV(lowest_div);
+        __raw_writel(reg_val, clk->scale_reg);
+
+        if (clk->busy_reg) {
+                int i;
+                for (i = 10000; i; i--)
+                        if (!clk_is_busy(clk))
+                                break;
+                if (!i)
+                        return -ETIMEDOUT;
+        }
+        /* Switch to ref_pix source */
+        clk_set_parent(clk, &ref_pix_clk);
+        reg_val = BM_CLKCTRL_CLKSEQ_BYPASS_DIS_LCDIF;
+        __raw_writel(reg_val, CLKCTRL_BASE_ADDR + HW_CLKCTRL_CLKSEQ_CLR);
+
+out:
+        pr_debug("Programming PFD=%u,DIV=%u ref_pix=%uMHz "
+                 "PIXCLK=%uMHz cycle=%u.%03uns\n",
+                 lowest_fracdiv, lowest_div,
+                 480*18/lowest_fracdiv, 480*18/lowest_fracdiv/lowest_div,
+                 lowest_result / 1000, lowest_result % 1000);
+        return ret;
 }
 
 static int lcdif_set_parent(struct clk *clk, struct clk *parent)

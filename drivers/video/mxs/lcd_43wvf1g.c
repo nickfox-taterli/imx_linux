@@ -30,35 +30,83 @@
 #include <mach/regs-pwm.h>
 #include <mach/system.h>
 
+#define TM043NDH02   0
+#define HW480272F    1
+#define TM070RDH13   2
+#define TM070RDH12   3
+
+#define LCM_TYPE  TM070RDH13
+
+#if ((LCM_TYPE) == (TM043NDH02))
+#define LCM_NAME  "TM043NDH02"
+#define DOTCLK_FREQUENCY_HZ   9000000
 #define DOTCLK_H_ACTIVE 480 
 #define DOTCLK_H_PULSE_WIDTH  41
-#define DOTCLK_HF_PORCH  5//2
-#define DOTCLK_HB_PORCH  5//2
-#define DOTCLK_H_WAIT_CNT  (DOTCLK_H_PULSE_WIDTH + DOTCLK_HB_PORCH)
-#define DOTCLK_H_PERIOD (DOTCLK_H_WAIT_CNT + DOTCLK_HF_PORCH + DOTCLK_H_ACTIVE)
-
+#define DOTCLK_HF_PORCH  5
+#define DOTCLK_HB_PORCH  5
 #define DOTCLK_V_ACTIVE  272
-#define DOTCLK_V_PULSE_WIDTH 20 //10
-#define DOTCLK_VF_PORCH  5//2
-#define DOTCLK_VB_PORCH  5//2
-#define DOTCLK_V_WAIT_CNT (DOTCLK_V_PULSE_WIDTH + DOTCLK_VB_PORCH)
-#define DOTCLK_V_PERIOD (DOTCLK_VF_PORCH + DOTCLK_V_ACTIVE + DOTCLK_V_WAIT_CNT)
+#define DOTCLK_V_PULSE_WIDTH 20
+#define DOTCLK_VF_PORCH  5
+#define DOTCLK_VB_PORCH  5
+#define LCD_PANEL_TYPE   MXS_LCD_PANEL_VSYNC                 // VSYNC模式
 
-/*
+#elif ((LCM_TYPE) == (HW480272F))
+#define LCM_NAME  "HW480272F"
+#define DOTCLK_FREQUENCY_HZ   9000000
+#define DOTCLK_H_ACTIVE 480 
+#define DOTCLK_H_PULSE_WIDTH  41
+#define DOTCLK_HF_PORCH  5
+#define DOTCLK_HB_PORCH  5
+#define DOTCLK_V_ACTIVE  272
+#define DOTCLK_V_PULSE_WIDTH 20
+#define DOTCLK_VF_PORCH  5
+#define DOTCLK_VB_PORCH  5
+#define LCD_PANEL_TYPE   MXS_LCD_PANEL_DOTCLK               // DE 模式
+
+#elif ((LCM_TYPE) == (TM070RDH12))
+#define LCM_NAME  "TM070RDH12"
+#define DOTCLK_FREQUENCY_HZ   40000000                      // 帧频率78.1Hz
 #define DOTCLK_H_ACTIVE  800
-#define DOTCLK_H_PULSE_WIDTH 10
-#define DOTCLK_HF_PORCH  164
-#define DOTCLK_HB_PORCH  89
+#define DOTCLK_H_PULSE_WIDTH 39
+#define DOTCLK_HF_PORCH  43
+#define DOTCLK_HB_PORCH  88
+#define DOTCLK_V_ACTIVE  480
+#define DOTCLK_V_PULSE_WIDTH  3
+#define DOTCLK_VF_PORCH  13
+#define DOTCLK_VB_PORCH  32
+#define LCD_PANEL_TYPE   MXS_LCD_PANEL_DOTCLK               // DE模式
+
+#elif ((LCM_TYPE) == (TM070RDH13))
+#define LCM_NAME  "TM070RDH13"
+#define DOTCLK_FREQUENCY_HZ   40000000
+#define DOTCLK_H_ACTIVE  800
+#define DOTCLK_H_PULSE_WIDTH 6
+#define DOTCLK_HF_PORCH  354
+#define DOTCLK_HB_PORCH  40
+#define DOTCLK_V_ACTIVE  480
+#define DOTCLK_V_PULSE_WIDTH  3
+#define DOTCLK_VF_PORCH  147
+#define DOTCLK_VB_PORCH  20
+#define LCD_PANEL_TYPE   MXS_LCD_PANEL_DOTCLK               // DE模式
+
+#else
+#define LCM_NAME  "Default_480x272"
+#define DOTCLK_FREQUENCY_HZ   9000000
+#define DOTCLK_H_ACTIVE 480 
+#define DOTCLK_H_PULSE_WIDTH  41
+#define DOTCLK_HF_PORCH  5
+#define DOTCLK_HB_PORCH  5
+#define DOTCLK_V_ACTIVE  272
+#define DOTCLK_V_PULSE_WIDTH 20
+#define DOTCLK_VF_PORCH  5
+#define DOTCLK_VB_PORCH  5
+#define LCD_PANEL_TYPE   MXS_LCD_PANEL_DOTCLK            // DE模式
+#endif
+
 #define DOTCLK_H_WAIT_CNT  (DOTCLK_H_PULSE_WIDTH + DOTCLK_HB_PORCH)
 #define DOTCLK_H_PERIOD (DOTCLK_H_WAIT_CNT + DOTCLK_HF_PORCH + DOTCLK_H_ACTIVE)
-
-#define DOTCLK_V_ACTIVE  480
-#define DOTCLK_V_PULSE_WIDTH  10
-#define DOTCLK_VF_PORCH  10
-#define DOTCLK_VB_PORCH  23
 #define DOTCLK_V_WAIT_CNT (DOTCLK_V_PULSE_WIDTH + DOTCLK_VB_PORCH)
 #define DOTCLK_V_PERIOD (DOTCLK_VF_PORCH + DOTCLK_V_ACTIVE + DOTCLK_V_WAIT_CNT)
-*/
 
 static struct mxs_platform_bl_data bl_data;
 static struct clk *lcd_clk;
@@ -78,7 +126,7 @@ static int init_panel(struct device *dev, dma_addr_t phys, int memsize,
 		goto out;
 	}
 
-        ret = clk_set_rate(lcd_clk, pentry->dclk_f);   /* kHz */
+	ret = clk_set_rate(lcd_clk, pentry->dclk_f);	/* Hz */
         if (ret) {                
 		clk_disable(lcd_clk);                
 		clk_put(lcd_clk);                
@@ -183,12 +231,12 @@ static struct mxs_platform_fb_entry fb_entry = {
 };
 */
 static struct mxs_platform_fb_entry fb_entry = {
-        .name = "HW480272F",
-        .x_res = 272,
-        .y_res = 480,
-        .bpp = 16,
-        .dclk_f = 8000000,
-        .lcd_type = MXS_LCD_PANEL_DOTCLK,
+        .name  = (LCM_NAME),
+        .x_res = (DOTCLK_V_ACTIVE),
+        .y_res = (DOTCLK_H_ACTIVE),
+        .bpp   = 16,
+        .dclk_f = (DOTCLK_FREQUENCY_HZ),
+        .lcd_type = (LCD_PANEL_TYPE),
         .init_panel = init_panel,
         .release_panel = release_panel,
         .blank_panel = blank_panel,
@@ -197,7 +245,6 @@ static struct mxs_platform_fb_entry fb_entry = {
         .pan_display = mxs_lcdif_pan_display,
         .bl_data = &bl_data,
 };
-
 
 static struct clk *pwm_clk;
 
