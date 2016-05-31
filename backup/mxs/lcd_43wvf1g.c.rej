@@ -1,0 +1,11 @@
+--- drivers/video/mxs/lcd_43wvf1g.c
++++ drivers/video/mxs/lcd_43wvf1g.c
+@@ -62,7 +62,7 @@
+ 		goto out;
+ 	}
+ 
+-	ret = clk_set_rate(lcd_clk, 1000000 / pentry->cycle_time_ns);	/* kHz */
++	ret = clk_set_rate(lcd_clk, 1000000000 / pentry->cycle_time_ns);	/* Hz */
+ 	if (ret) {
+ 		clk_disable(lcd_clk);
+ 		clk_put(lcd_clk);

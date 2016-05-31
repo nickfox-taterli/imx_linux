@@ -1,0 +1,12 @@
+--- drivers/serial/mxs-auart.c
++++ drivers/serial/mxs-auart.c
+@@ -1036,6 +1070,9 @@
+ 	s->port.dev = s->dev = get_device(&pdev->dev);
+ 
+ 	s->flags = plat->dma_mode ? MXS_AUART_PORT_DMA_MODE : 0;
++	if (s->flags & MXS_AUART_PORT_DMA_MODE)
++		s->port.flags |= ASYNC_LOW_LATENCY;
++
+ 	s->ctrl = 0;
+ 	s->dma_rx_buffer_size = plat->dma_rx_buffer_size;
+ 

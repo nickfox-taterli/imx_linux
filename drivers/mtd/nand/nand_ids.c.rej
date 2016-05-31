@@ -1,0 +1,10 @@
+--- old_linux/xxxx/linux-2.6.35.3/drivers/mtd/nand/nand_ids.c	2009-01-01 22:50:45.000000000 +0800
++++ drivers/mtd/nand/nand_ids.c	2014-06-19 15:30:51.000000000 +0800
+@@ -148,6 +148,7 @@
+ 	{NAND_MFR_AMD, "AMD"},
+ 	{NAND_MFR_SANDISK, "SanDisk"},
+ 	{NAND_MFR_INTEL, "Intel"},
++	{0x2c, "ZLG-MXIC"},
+ 	{0x0, "Unknown"}
+ };
+ 

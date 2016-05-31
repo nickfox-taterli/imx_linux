@@ -1,0 +1,22 @@
+--- old_linux/xxxx/linux-2.6.35.3/drivers/mtd/nand/nand_device_info.c	2009-01-01 22:50:45.000000000 +0800
++++ drivers/mtd/nand/nand_device_info.c	2014-06-19 15:30:59.000000000 +0800
+@@ -98,7 +98,7 @@
+ 	},
+ 	{
+ 	.end_of_table             = false,
+-	.manufacturer_code        = 0x98,
++	.manufacturer_code        = 0xc2,
+ 	.device_code              = 0xf1,
+ 	.cell_technology          = NAND_DEVICE_CELL_TECH_SLC,
+ 	.chip_size_in_bytes       = 128LL*SZ_1M,
+@@ -2269,6 +2269,10 @@
+ 	.fn = nand_device_info_fn_toshiba,
+ 	},
+ 	{
++	.id = 0xc2,
++	.fn = nand_device_info_fn_toshiba,
++	},
++	{
+ 	.id = NAND_MFR_SAMSUNG,
+ 	.fn = nand_device_info_fn_samsung,
+ 	},
