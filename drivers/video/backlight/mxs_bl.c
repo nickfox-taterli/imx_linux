@@ -291,7 +291,7 @@ out:
 	return ret;
 }
 
-static int __init mxsbl_probe(struct platform_device *pdev)
+static int __devinit mxsbl_probe(struct platform_device *pdev)
 {
 	struct mxs_bl_data *data;
 	struct mxs_platform_bl_data *pdata = pdev->dev.platform_data;

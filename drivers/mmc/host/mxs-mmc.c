@@ -1018,7 +1018,7 @@ static void mxs_mmc_dma_release(struct mxs_mmc_host *host)
 }
 
 /* Probe peripheral for connected cards */
-static int __init mxs_mmc_probe(struct platform_device *pdev)
+static int __devinit mxs_mmc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxs_mmc_platform_data *mmc_data;

@@ -513,7 +513,7 @@ static irqreturn_t mxs_spi_irq_err(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init mxs_spi_probe(struct platform_device *dev)
+static int __devinit mxs_spi_probe(struct platform_device *dev)
 {
 	struct mxs_spi_platform_data *pdata;
 	int err = 0;

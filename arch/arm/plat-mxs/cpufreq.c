@@ -363,7 +363,7 @@ static int mxs_verify_speed(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_verify(policy, imx_freq_table);
 }
 
-static int __init mxs_cpu_init(struct cpufreq_policy *policy)
+static int __devinit mxs_cpu_init(struct cpufreq_policy *policy)
 {
 	int ret = 0;
 	int i;
